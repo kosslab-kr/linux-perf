@@ -391,7 +391,7 @@ out:
 	return status;
 }
 
-static void handle_internal_command(int argc, const char **argv)
+static int handle_internal_command(int argc, const char **argv)
 {
 	const char *cmd = argv[0];
 	unsigned int i;
@@ -414,10 +414,12 @@ static void handle_internal_command(int argc, const char **argv)
 
 	for (i = 0; i < ARRAY_SIZE(commands); i++) {
 		struct cmd_struct *p = commands+i;
-		if (strcmp(p->cmd, cmd))
-			continue;
-		exit(run_builtin(p, argc, argv));
+
+		if (!strcmp(p->cmd, cmd))
+			return run_builtin(p, argc, argv);
 	}
+
+	return -1;
 }
 
 static void execv_dashed_external(const char **argv)
@@ -458,25 +460,35 @@ do_die:
 
 static int run_argv(int *argcp, const char ***argv)
 {
-	int done_alias = 0;
+	const char *cmd = *argv[0];
 
-	while (1) {
-		/* See if it's an internal command */
-		handle_internal_command(*argcp, *argv);
+	/* See if it's an internal command */
+	if (!handle_internal_command(*argcp, *argv))
+		return 0;
+	/* .. then try the external ones */
+	execv_dashed_external(*argv);
 
-		/* .. then try the external ones */
-		execv_dashed_external(*argv);
-
-		/* It could be an alias -- this works around the insanity
-		 * of overriding "perf log" with "perf show" by having
-		 * alias.log = show
-		 */
-		if (done_alias || !handle_alias(argcp, argv))
-			break;
-		done_alias = 1;
+	/* It could be an alias -- this works around the insanity
+	 * of overriding "perf log" with "perf show" by having
+	 * alias.log = show
+	 */
+	if (handle_alias(argcp, argv)) {
+		if (handle_internal_command(*argcp, *argv) < 0) {
+			fprintf(stderr, "Expansion of alias '%s' failed; "
+				"'%s' is not a perf-command\n",
+				cmd, *argv[0]);
+			return -1;
+		}
+	} else {
+		cmd = help_unknown_cmd(cmd);
+		if (cmd == NULL)
+			return -1;
+		*argv[0] = cmd;
+		if (handle_internal_command(*argcp, *argv) < 0)
+			return -1;
 	}
 
-	return done_alias;
+	return 0;
 }
 
 static void pthread__block_sigwinch(void)
@@ -604,28 +616,12 @@ int main(int argc, const char **argv)
 
 	perf_debug_setup();
 
-	while (1) {
-		static int done_help;
-		int was_alias = run_argv(&argc, &argv);
+	if (run_argv(&argc, &argv) < 0)
+		return -1;
 
-		if (errno != ENOENT)
-			break;
-
-		if (was_alias) {
-			fprintf(stderr, "Expansion of alias '%s' failed; "
-				"'%s' is not a perf-command\n",
-				cmd, argv[0]);
-			goto out;
-		}
-		if (!done_help) {
-			cmd = argv[0] = help_unknown_cmd(cmd);
-			done_help = 1;
-		} else
-			break;
-	}
-
-	fprintf(stderr, "Failed to run command '%s': %s\n",
-		cmd, str_error_r(errno, sbuf, sizeof(sbuf)));
+	if (errno != ENOENT)
+		fprintf(stderr, "Failed to run command '%s': %s\n",
+			cmd, strerror_r(errno, sbuf, sizeof(sbuf)));
 out:
 	return 1;
 }
