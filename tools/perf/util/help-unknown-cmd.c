@@ -116,5 +116,5 @@ const char *help_unknown_cmd(const char *cmd)
 			fprintf(stderr, "\t%s\n", main_cmds.names[i]->name);
 	}
 end:
-	exit(1);
+	return NULL;
 }
