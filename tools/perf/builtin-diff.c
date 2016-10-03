@@ -868,7 +868,7 @@ static int __hpp__color_compare(struct perf_hpp_fmt *fmt,
 			diff = compute_delta(he, pair);
 
 		scnprintf(pfmt, 20, "%%%+d.2f%%%%", dfmt->header_width - 1);
-		return percent_color_snprintf(hpp->buf, hpp->size,
+		return delta_color_snprintf(hpp->buf, hpp->size,
 					pfmt, diff);
 	case COMPUTE_RATIO:
 		if (he->dummy)

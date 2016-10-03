@@ -219,3 +219,24 @@ int percent_color_len_snprintf(char *bf, size_t size, const char *fmt, ...)
 	color = get_percent_color(percent);
 	return color_snprintf(bf, size, color, fmt, len, percent);
 }
+
+int delta_color_snprintf(char *bf, size_t size, const char *fmt, ...)
+{
+	va_list args;
+	double diff, percent;
+	const char *color = PERF_COLOR_NORMAL;
+
+	va_start(args, fmt);
+	diff = va_arg(args, double);
+	va_end(args);
+
+	/* diff command printed second digit after the decimal point. */
+	percent = roundf(diff * 100) / 100;
+	if (percent < 0)
+		color = PERF_COLOR_BLUE;
+	else {
+		if (percent > 0)
+			color = PERF_COLOR_BG_RED;
+	}
+	return color_snprintf(bf, size, color, fmt, diff);
+}

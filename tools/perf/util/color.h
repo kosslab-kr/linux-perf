@@ -40,6 +40,7 @@ int value_color_snprintf(char *bf, size_t size, const char *fmt, double value);
 int percent_color_snprintf(char *bf, size_t size, const char *fmt, ...);
 int percent_color_len_snprintf(char *bf, size_t size, const char *fmt, ...);
 int percent_color_fprintf(FILE *fp, const char *fmt, double percent);
+int delta_color_snprintf(char *bf, size_t size, const char *fmt, ...);
 const char *get_percent_color(double percent);
 
 #endif /* __PERF_COLOR_H */
